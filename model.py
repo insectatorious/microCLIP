@@ -11,7 +11,6 @@ class MicroCLIP(tf.keras.Model):
                text_encoder: tf.keras.Model | None = None,
                image_encoder: tf.keras.Model | None = None,
                temperature: float = 1.0,
-               tensorboard_dir: str | None = None,
                **kwargs):
     super().__init__(**kwargs)
 
@@ -31,16 +30,6 @@ class MicroCLIP(tf.keras.Model):
     self.image_encoder = image_encoder
     self.image_preprocessor = image_encoder.image_preprocessor
     self.temperature = temperature
-    self.tensorboard_dir = tensorboard_dir
-
-    if self.tensorboard_dir is not None:
-      loss_dir = os.path.join(tensorboard_dir, "loss")
-      logits_dir = os.path.join(tensorboard_dir, "logits")
-      test_text_dir = os.path.join(tensorboard_dir, "test_text")
-      self.summary_writers = {
-        "loss": tf.summary.create_file_writer(loss_dir),
-        "logits": tf.summary.create_file_writer(logits_dir),
-      }
 
   def call(self, inputs, training=False, mask=None):
     """Performs a forward pass.
@@ -87,8 +76,7 @@ class MicroCLIP(tf.keras.Model):
   def get_config(self):
     return {"text_encoder": self.text_encoder,
             "image_encoder": self.image_encoder,
-            "temperature": self.temperature,
-            "tensorboard_dir": self.tensorboard_dir}
+            "temperature": self.temperature}
 
   def train_step(self, data):
     """Performs a training step.
@@ -114,26 +102,10 @@ class MicroCLIP(tf.keras.Model):
     gradients = tape.gradient(loss, self.trainable_variables)
     self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
-    # Write metrics to TensorBoard
-    tf.cond(self._train_counter % 25 == 0,
-            true_fn=lambda: self.write_summaries(image_loss, logits, loss, text_loss),
-            false_fn=lambda: None)
-
     return {"loss": loss,
             "image_loss": tf.reduce_mean(image_loss),
             "text_loss": tf.reduce_mean(text_loss),
             "logits": logits}
-
-  def write_summaries(self, image_loss, logits, loss, text_loss):
-    with self.summary_writers["loss"].as_default():
-      tf.summary.scalar("loss/total", loss, step=self._train_counter)
-      tf.summary.scalar("loss/image", tf.reduce_mean(image_loss), step=self._train_counter)
-      tf.summary.scalar("loss/text", tf.reduce_mean(text_loss), step=self._train_counter)
-    with self.summary_writers["logits"].as_default():
-      tf.summary.histogram("logits/total", logits, step=self._train_counter)
-      tf.summary.scalar("logits/max", tf.reduce_max(logits), step=self._train_counter)
-      tf.summary.scalar("logits/mean", tf.reduce_mean(logits), step=self._train_counter)
-      tf.summary.scalar("logits/min", tf.reduce_min(logits), step=self._train_counter)
 
 
 if __name__ == '__main__':
