@@ -6,29 +6,36 @@ import tensorflow as tf
 class ImageTextCosineSimilarityCallback(tf.keras.callbacks.Callback):
   """Callback for computing cosine similarity between image and text embeddings."""
 
-  def __init__(self, images, texts_tokenised, tensorboard_log_dir):
+  def __init__(self, images, texts_tokenised, tensorboard_log_dir, batch_interval=50):
     super().__init__()
     self.images = images
     self.texts_tokenised = texts_tokenised
     self.tensorboard_log_dir = os.path.join(tensorboard_log_dir, "cosine_similarity")
     self.tensorboard_writer = tf.summary.create_file_writer(tensorboard_log_dir)
+    self.epoch = -1
+    self.batch_interval = batch_interval
 
-  def on_epoch_end(self, epoch, logs=None):
-    logits = self.model((self.texts_tokenised, self.images))
-    logits_softmax = tf.nn.softmax(logits / self.model.temperature, axis=-1)
+  def on_epoch_begin(self, epoch, logs=None):
+    self.epoch = epoch
 
-    # print(f'Cosine similarity: {cosine_similarity.numpy()}')
-    with self.tensorboard_writer.as_default():
-      # Log cosine similarity separately for each image
-      for i, label in zip(range(logits.shape[0]), ["bus", "cat", "dog"]):
-        tf.summary.scalar(f"cosine_similarity/softmax/{label}", logits_softmax[i, i], step=epoch)
-        tf.summary.scalar(f"cosine_similarity/raw/{label}", logits[i, i], step=epoch)
+  def on_train_batch_end(self, batch, logs=None):
+    batch += self.params["steps"] * self.epoch
+    if batch % self.batch_interval == 0:
+      logits = self.model((self.texts_tokenised, self.images))
+      logits_softmax = tf.nn.softmax(logits / self.model.temperature, axis=-1)
+
+      # print(f'Cosine similarity: {cosine_similarity.numpy()}')
+      with self.tensorboard_writer.as_default():
+        # Log cosine similarity separately for each image
+        for i, label in zip(range(logits.shape[0]), ["bus", "cat", "dog"]):
+          tf.summary.scalar(f"cosine_similarity/softmax/{label}", logits_softmax[i, i], step=batch)
+          tf.summary.scalar(f"cosine_similarity/raw/{label}", logits[i, i], step=batch)
 
 
 class BatchMetricsCallback(tf.keras.callbacks.Callback):
   """Callback for writing loss scalar metrics every N batches to Tensorboard."""
 
-  def __init__(self, tensorboard_log_dir, batch_interval=25):
+  def __init__(self, tensorboard_log_dir, batch_interval=50):
     super().__init__()
     self.tensorboard_log_dir = tensorboard_log_dir
     self.batch_interval = batch_interval
