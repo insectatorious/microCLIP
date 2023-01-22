@@ -3,7 +3,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 
-from callbacks import ImageTextCosineSimilarityCallback
+from callbacks import ImageTextCosineSimilarityCallback, BatchMetricsCallback
 from data_loader import load_cc3m
 from model import MicroCLIP
 from image_encoder.model import ResNet
@@ -36,15 +36,17 @@ def main():
                    tensorboard_dir=logdir)
   dataset = load_cc3m('/Users/sumanas/Documents/data/cc3m',
                       text_transformer.tokenizer,
-                      batch_size=64)
+                      batch_size=128)
 
   clip.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
     loss=None,
   )
 
-  clip.fit(dataset, epochs=10,
-           callbacks=[ImageTextCosineSimilarityCallback(images, texts_tokenised, logdir)])
+  clip.fit(dataset,
+           epochs=25,
+           callbacks=[ImageTextCosineSimilarityCallback(images, texts_tokenised, logdir),
+                      BatchMetricsCallback(logdir)])
   clip.save_weights('clip.h5')
 
   return clip
