@@ -42,14 +42,18 @@ def main(config):
                       batch_size=config["batch_size"],)
 
   clip.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
     loss=None,
   )
 
   clip.fit(dataset,
            epochs=config["epochs"],
            callbacks=[ImageTextCosineSimilarityCallback(images, texts_tokenised, logdir),
-                      BatchMetricsCallback(logdir)])
+                      BatchMetricsCallback(logdir),
+                      tf.keras.callbacks.ReduceLROnPlateau(monitor='loss',
+                                                           factor=0.2,
+                                                           patience=1,
+                                                           min_lr=0.000001)])
   clip.save_weights('clip.h5')
 
   return clip
