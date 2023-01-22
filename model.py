@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import tensorflow as tf
 
@@ -8,8 +9,8 @@ from text_transformer.model import TextTransformer
 
 class MicroCLIP(tf.keras.Model):
   def __init__(self,
-               text_encoder: tf.keras.Model | None = None,
-               image_encoder: tf.keras.Model | None = None,
+               text_encoder: Optional[tf.keras.Model] = None,
+               image_encoder: Optional[tf.keras.Model] = None,
                temperature: float = 1.0,
                **kwargs):
     super().__init__(**kwargs)
