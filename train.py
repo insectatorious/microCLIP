@@ -36,8 +36,7 @@ def main(config):
 
   clip = MicroCLIP(image_encoder=image_encoder,
                    text_encoder=text_transformer,
-                   temperature=config["temperature"],
-                   tensorboard_dir=logdir)
+                   temperature=config["temperature"])
   dataset = load_cc3m(config["data_dir"],
                       text_transformer.tokenizer,
                       batch_size=config["batch_size"],)
