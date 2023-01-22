@@ -30,7 +30,7 @@ clip((texts_tokenised, images))
 clip.load_weights('clip.h5')
 
 # Predict
-predictions = clip.predict([images, texts_tokenised])
+predictions = clip.predict([texts_tokenised, images])
 print(predictions)
 
 predictions_softmax = tf.nn.softmax(predictions / clip.temperature, axis=0)
