@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, List
 
 import tensorflow as tf
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
   print(model((["This is a cat"] * 3, image)))
 
 
-def test_helper(image_path, texts: list[str], clip_model: tf.keras.Model):
+def test_helper(image_path, texts: List[str], clip_model: tf.keras.Model):
   from PIL import Image
 
   # np.random.shuffle(texts)
