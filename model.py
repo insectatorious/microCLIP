@@ -11,6 +11,7 @@ class MicroCLIP(tf.keras.Model):
   def __init__(self,
                text_encoder: Optional[tf.keras.Model] = None,
                image_encoder: Optional[tf.keras.Model] = None,
+               latent_dim: int = 512,
                temperature: float = 1.0,
                **kwargs):
     super().__init__(**kwargs)
@@ -31,6 +32,10 @@ class MicroCLIP(tf.keras.Model):
     self.image_encoder = image_encoder
     self.image_preprocessor = image_encoder.image_preprocessor
     self.temperature = temperature
+    self.latent_dim = latent_dim
+
+    self.text_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
+    self.image_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
 
   def call(self, inputs, training=False, mask=None):
     """Performs a forward pass.
@@ -59,7 +64,9 @@ class MicroCLIP(tf.keras.Model):
     """
     text, image = inputs
     text_features = self.text_encoder(text, training=training)
+    text_features = self.text_linear_projection(text_features)
     image_features = self.image_encoder(image, training=training)
+    image_features = self.image_linear_projection(image_features)
 
     # Joint multi-modal embedding
     # image_logits = tf.tensordot(image_features, text_features, axes=1)
@@ -77,6 +84,7 @@ class MicroCLIP(tf.keras.Model):
   def get_config(self):
     return {"text_encoder": self.text_encoder,
             "image_encoder": self.image_encoder,
+            "latent_dim": self.latent_dim,
             "temperature": self.temperature}
 
   def train_step(self, data):

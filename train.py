@@ -11,12 +11,18 @@ from model import MicroCLIP
 from image_encoder.model import ResNet
 from text_transformer.model import TextTransformer
 
+
 # DATA_DIR = os.environ.get("DATA_DIR", '/Users/sumanas/Documents/data/cc3m')
 
 
 def main(config):
-  text_transformer = TextTransformer(64, num_heads=4, num_layers=4, ff_dim=128, num_classes=None)
-  image_encoder = ResNet(filters=64, num_classes=None)
+  text_transformer = TextTransformer(embedding_dim=config['text_embedding_dim'],
+                                     num_heads=config['text_num_heads'],
+                                     num_layers=config['text_num_layers'],
+                                     ff_dim=config['text_ff_dim'],
+                                     num_classes=None)
+  image_encoder = ResNet(filters=config['img_filter_count'],
+                         num_classes=None)
   image_encoder.build((None, 64, 64, 3))
 
   # Fetch test images from Imgur
@@ -36,10 +42,11 @@ def main(config):
 
   clip = MicroCLIP(image_encoder=image_encoder,
                    text_encoder=text_transformer,
-                   temperature=config["temperature"])
+                   temperature=config["temperature"],
+                   latent_dim=config["latent_dim"], )
   dataset = load_cc3m(config["data_dir"],
                       text_transformer.tokenizer,
-                      batch_size=config["batch_size"],)
+                      batch_size=config["batch_size"], )
 
   clip.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
@@ -66,6 +73,18 @@ if __name__ == '__main__':
   parser.add_argument('--epochs', required=False, type=int, default=100, help='Number of epochs to train for')
   parser.add_argument('--batch_size', required=False, type=int, default=128, help='Batch size')
   parser.add_argument('--temperature', required=False, type=float, default=0.1, help='Temperature for softmax')
+  parser.add_argument('--img_filter_count', required=False, type=int, default=128,
+                      help='Number of filters in image encoder')
+  parser.add_argument('--text_embedding_dim', required=False, type=int, default=128,
+                      help='Embedding dimension for text encoder')
+  parser.add_argument('--latent_dim', required=False, type=int, default=128,
+                      help='Latent dimension for both encoders')
+  parser.add_argument('--text_num_heads', required=False, type=int, default=4,
+                      help='Number of attention heads for text encoder')
+  parser.add_argument('--text_num_layers', required=False, type=int, default=4,
+                      help='Number of layers for text encoder')
+  parser.add_argument('--text_ff_dim', required=False, type=int, default=512,
+                      help='Feed forward dimension for text encoder')
 
   args = parser.parse_args()
   config = vars(args)
