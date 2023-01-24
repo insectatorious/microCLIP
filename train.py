@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 from callbacks import ImageTextCosineSimilarityCallback, BatchMetricsCallback
-from data_loader import load_cc3m
+from data_loader import read_tfrecord
 from model import MicroCLIP
 from image_encoder.model import ResNet
 from text_transformer.model import TextTransformer
@@ -44,9 +44,16 @@ def main(config):
                    text_encoder=text_transformer,
                    temperature=config["temperature"],
                    latent_dim=config["latent_dim"], )
-  dataset = load_cc3m(config["data_dir"],
-                      text_transformer.tokenizer,
-                      batch_size=config["batch_size"], )
+  # dataset = load_cc3m(config["data_dir"],
+  #                     text_transformer.tokenizer,
+  #                     batch_size=config["batch_size"], )
+  dataset = read_tfrecord(config["tfrecord_path"],
+                          batch_size=config["batch_size"],
+                          image_size=(64, 64))
+  # for batch in dataset.take(1):
+  #   print("Batch shape:", batch[0].shape, batch[1].shape)
+  #   print(batch)
+  #   print(clip(batch[0], batch[1]))
 
   clip.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
@@ -69,7 +76,8 @@ def main(config):
 if __name__ == '__main__':
   # Parse command line arguments
   parser = argparse.ArgumentParser()
-  parser.add_argument('--data_dir', required=True, type=str, help='Path to CC3M dataset')
+  # parser.add_argument('--data_dir', required=True, type=str, help='Path to CC3M dataset')
+  parser.add_argument('--tfrecord_path', required=True, type=str, help='Path to TFRecord dataset')
   parser.add_argument('--epochs', required=False, type=int, default=100, help='Number of epochs to train for')
   parser.add_argument('--batch_size', required=False, type=int, default=128, help='Batch size')
   parser.add_argument('--temperature', required=False, type=float, default=0.1, help='Temperature for softmax')

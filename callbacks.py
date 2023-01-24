@@ -19,7 +19,8 @@ class ImageTextCosineSimilarityCallback(tf.keras.callbacks.Callback):
     self.epoch = epoch
 
   def on_train_batch_end(self, batch, logs=None):
-    batch += self.params["steps"] * self.epoch
+    # print("Batch:", batch, "Epoch:", self.epoch, "Step:", self.params)
+    batch += (self.params["steps"] or 1) * self.epoch
     if batch % self.batch_interval == 0:
       logits = self.model((self.texts_tokenised, self.images))
       logits_softmax = tf.nn.softmax(logits / self.model.temperature, axis=-1)
@@ -52,7 +53,8 @@ class BatchMetricsCallback(tf.keras.callbacks.Callback):
     self.epoch = epoch
 
   def on_train_batch_end(self, batch, logs=None):
-    batch += self.params["steps"] * self.epoch
+    # print("Batch:", batch, "Epoch:", self.epoch, "Step:", self.params)
+    batch += (self.params["steps"] or 1) * self.epoch
     if batch % self.batch_interval == 0:
       with self.tensorboard_loss_writer.as_default():
         self.write_loss_metrics(batch, logs)
