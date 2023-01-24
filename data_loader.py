@@ -8,6 +8,7 @@
 # The label is a plain text string. The image is a 256x256x3 RGB image.
 
 import os
+import argparse
 from functools import partial
 from typing import Optional
 
@@ -144,12 +145,23 @@ def read_tfrecord(file_path, batch_size=32, image_size=(256, 256)):
 
 
 if __name__ == '__main__':
+  # Get arguments
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--data_dir', type=str, default='data/cc3m')
+  parser.add_argument('--output_path', type=str, default='data/cc3m.tfrecord')
+  parser.add_argument('--batch_size', type=int, default=None)
+  parser.add_argument('--shuffle_buffer_size', type=int, default=1000)
+  args = parser.parse_args()
+
   # Test the data loader.
   from text_transformer.model import TextTransformer
 
   text_transformer = TextTransformer(64, num_heads=4, num_layers=4, ff_dim=128)
-  load_cc3m_to_tfrecord('/Users/sumanas/Documents/data/cc3m', text_transformer.tokenizer)
-  # dataset = load_cc3m('/Users/sumanas/Documents/data/cc3m', text_transformer.tokenizer)
-  # for label, image in dataset:
-  #   print(image.shape)
-  #   print(label.shape)
+  text_tokenizer = text_transformer.tokenizer
+
+  # Write the dataset to a tfrecord file
+  load_cc3m_to_tfrecord(args.data_dir,
+                        text_tokenizer,
+                        batch_size=args.batch_size,
+                        shuffle_buffer_size=args.shuffle_buffer_size,
+                        output_path=args.output_path)
