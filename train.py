@@ -60,15 +60,20 @@ def main(config):
     loss=None,
   )
 
+  callbacks = [
+    ImageTextCosineSimilarityCallback(texts_tokenised, images, logdir),
+    BatchMetricsCallback(logdir),
+  ]
+  if config["reduce_lr"]:
+    callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(monitor='loss',
+                                                          factor=0.2,
+                                                          patience=1,
+                                                          min_lr=1e-6))
   clip.fit(dataset,
            epochs=config["epochs"],
-           callbacks=[ImageTextCosineSimilarityCallback(images, texts_tokenised, logdir),
-                      BatchMetricsCallback(logdir),
-                      tf.keras.callbacks.ReduceLROnPlateau(monitor='loss',
-                                                           factor=0.2,
-                                                           patience=1,
-                                                           min_lr=0.000001)])
+           callbacks=callbacks, )
   clip.save_weights('clip.h5')
+  clip.save('clip')
 
   return clip
 
@@ -93,6 +98,9 @@ if __name__ == '__main__':
                       help='Number of layers for text encoder')
   parser.add_argument('--text_ff_dim', required=False, type=int, default=512,
                       help='Feed forward dimension for text encoder')
+  # Add param for reduce LR on plateau toggle
+  parser.add_argument('--reduce_lr', required=False, type=bool, default=False,
+                      help='Reduce LR on plateau')
 
   args = parser.parse_args()
   config = vars(args)

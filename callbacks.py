@@ -6,7 +6,7 @@ import tensorflow as tf
 class ImageTextCosineSimilarityCallback(tf.keras.callbacks.Callback):
   """Callback for computing cosine similarity between image and text embeddings."""
 
-  def __init__(self, images, texts_tokenised, tensorboard_log_dir, batch_interval=50):
+  def __init__(self, texts_tokenised, images, tensorboard_log_dir, batch_interval=50):
     super().__init__()
     self.images = images
     self.texts_tokenised = texts_tokenised
