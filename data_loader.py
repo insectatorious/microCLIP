@@ -50,11 +50,12 @@ def load_dataset(data_dir, text_tokenizer, batch_size=32, shuffle_buffer_size=10
   for root, dirs, files in os.walk(data_dir):
     for file in files:
       if file.endswith(".png"):
-        image_paths.append(os.path.join(root, file))
         expected_label_path = os.path.join(root, file.replace(".png", ".txt"))
         if not os.path.exists(expected_label_path):
-          raise ValueError("Missing label file: {}".format(expected_label_path))
+          print("Missing label file: {}".format(expected_label_path))
+          continue
         label_paths.append(expected_label_path)
+        image_paths.append(os.path.join(root, file))
 
   image_paths = tf.constant(image_paths)
   label_paths = tf.constant(label_paths)
