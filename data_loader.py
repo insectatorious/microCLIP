@@ -103,18 +103,19 @@ def load_cc3m_to_tfrecord(data_dir,
     for label, image in dataset:
       try:
         # Create a feature dictionary for the label and image data
-        feature = tf.train.Example(features=tf.train.Features(feature={
-            'label': tf.train.Feature(int64_list=tf.train.Int64List(value=label.numpy().flatten())),
-            'image': tf.train.Feature(float_list=tf.train.FloatList(value=image.numpy().flatten()))
-        }))
+        feature = {
+          'label': tf.train.Feature(int64_list=tf.train.Int64List(value=label.numpy().flatten())),
+          'image': tf.train.Feature(float_list=tf.train.FloatList(value=image.numpy().flatten()))
+          # 'image': tf.train.Feature(bytes_list=tf.train.BytesList(value=[image.numpy().tobytes()]))
+        }
         # Create an example message from the feature dictionary
         example = tf.train.Example(features=tf.train.Features(feature=feature))
         # Write the example message to the tfrecord file
         writer.write(example.SerializeToString())
         # Update the progress bar
         pbar.update(1)
-      except:
-        print(f"Failed to write example to tfrecord file: {label}")
+      except tf.errors.InvalidArgumentError as ex:
+        print(f"Failed to write example: {ex}")
         continue
 
   # Close the tfrecord writer
