@@ -83,31 +83,39 @@ def load_cc3m_to_tfrecord(data_dir,
                           shuffle_buffer_size=1000,
                           output_path='cc3m.tfrecord'):
   """Load the CC3M dataset and write it to a tfrecord file."""
-  dataset = load_dataset(data_dir, text_tokenizer, batch_size=None, shuffle_buffer_size=shuffle_buffer_size)
+  dataset = load_dataset(data_dir,
+                         text_tokenizer,
+                         batch_size=batch_size,
+                         shuffle_buffer_size=shuffle_buffer_size)
 
   # Create a new tfrecord writer
   writer = tf.io.TFRecordWriter(output_path,
-                                options=tf.io.TFRecordOptions(compression_type='GZIP', compression_level=9))
+                                options=tf.io.TFRecordOptions(compression_type='GZIP',
+                                                              compression_level=9))
 
   # Count the total number of items in the dataset
   count = tf.data.experimental.cardinality(dataset).numpy()
 
   # Use tqdm to display a progress bar
   with tqdm(total=count) as pbar:
-    # Iterate through the dataset and write the data to the tfrecord file
-    for (label, image) in dataset:
-      # Create a feature dictionary for the label and image data
-      feature = {
-        'label': tf.train.Feature(int64_list=tf.train.Int64List(value=label.numpy().flatten())),
-        'image': tf.train.Feature(float_list=tf.train.FloatList(value=image.numpy().flatten()))
-        # 'image': tf.train.Feature(bytes_list=tf.train.BytesList(value=[image.numpy().tobytes()]))
-      }
-      # Create an example message from the feature dictionary
-      example = tf.train.Example(features=tf.train.Features(feature=feature))
-      # Write the example message to the tfrecord file
-      writer.write(example.SerializeToString())
-      # Update the progress bar
-      pbar.update(1)
+    # Iterate through the dataset and write the data to the tfrecord file,
+    # handling cases where the PNG is corrupt.
+    for label, image in dataset:
+      try:
+        # Create a feature dictionary for the label and image data
+        feature = tf.train.Example(features=tf.train.Features(feature={
+            'label': tf.train.Feature(int64_list=tf.train.Int64List(value=label.numpy().flatten())),
+            'image': tf.train.Feature(float_list=tf.train.FloatList(value=image.numpy().flatten()))
+        }))
+        # Create an example message from the feature dictionary
+        example = tf.train.Example(features=tf.train.Features(feature=feature))
+        # Write the example message to the tfrecord file
+        writer.write(example.SerializeToString())
+        # Update the progress bar
+        pbar.update(1)
+      except:
+        print(f"Failed to write example to tfrecord file: {label}, {image}")
+        continue
 
   # Close the tfrecord writer
   writer.close()
