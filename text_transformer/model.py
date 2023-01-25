@@ -18,9 +18,13 @@ class TextTransformer(tf.keras.Model):
                rate=0.1,
                num_classes: Optional[int] = 1):
     super(TextTransformer, self).__init__()
-    self.num_classes = num_classes
-    self.num_layers = num_layers
     self.embedding_dim = embedding_dim
+    self.num_heads = num_heads
+    self.ff_dim = ff_dim
+    self.num_layers = num_layers
+    self.rate = rate
+    self.num_classes = num_classes
+
     self.tokenizer = SimpleTokenizer()
     self.vocab_size = len(self.tokenizer.encoder)
     self.embedding = layers.Embedding(self.vocab_size, embedding_dim)
