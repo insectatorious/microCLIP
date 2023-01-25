@@ -10,7 +10,7 @@
 import os
 import argparse
 from functools import partial
-from typing import Optional
+from typing import Optional, List
 
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -19,10 +19,15 @@ from tqdm import tqdm
 
 def load_image(image_path, label_path, encode_fn):
   """Load an image and its corresponding label."""
-  image = tf.io.read_file(image_path)
-  image = tf.image.decode_png(image, channels=3)
-  image = tf.image.convert_image_dtype(image, tf.float32)
-  image = tf.image.resize(image, (256, 256))
+  try:
+    image = tf.io.read_file(image_path)
+    image = tf.image.decode_png(image, channels=3)
+    image = tf.image.convert_image_dtype(image, tf.float32)
+    image = tf.image.resize(image, (256, 256))
+  except:
+    print("Failed to load image: {}".format(image_path))
+    return None, None
+
   label = tf.io.read_file(label_path)
   label = tf.strings.strip(label)
 
@@ -40,6 +45,10 @@ def encode_text(text, tokeniser):
   encoded_text = tokeniser.encode(text)
   encoded_text = pad_sequences([encoded_text], maxlen=128, padding="post", truncating="post")
   return encoded_text[0]
+
+
+def check_label_and_image_are_valid(label, image):
+  return label and image
 
 
 def load_dataset(data_dir, text_tokenizer, batch_size: Optional[int] = 32, shuffle_buffer_size=1000):
@@ -64,6 +73,7 @@ def load_dataset(data_dir, text_tokenizer, batch_size: Optional[int] = 32, shuff
   dataset = tf.data.Dataset.from_tensor_slices((image_paths, label_paths))
   dataset = dataset.shuffle(shuffle_buffer_size)
   dataset = dataset.map(load_image_fn, num_parallel_calls=tf.data.AUTOTUNE)
+  dataset = dataset.filter(check_label_and_image_are_valid)
   if batch_size:
     dataset = dataset.batch(batch_size, drop_remainder=True)
     dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
@@ -81,7 +91,7 @@ def load_cc3m_to_tfrecord(data_dir,
 
   # Create a new tfrecord writer
   writer = tf.io.TFRecordWriter(output_path,
-                                options=tf.io.TFRecordOptions(compression_type='GZIP'))
+                                options=tf.io.TFRecordOptions(compression_type='GZIP', compression_level=9))
 
   # Count the total number of items in the dataset
   count = tf.data.experimental.cardinality(dataset).numpy()
@@ -159,9 +169,12 @@ if __name__ == '__main__':
   text_transformer = TextTransformer(64, num_heads=4, num_layers=4, ff_dim=128)
   text_tokenizer = text_transformer.tokenizer
 
-  # Write the dataset to a tfrecord file
-  load_cc3m_to_tfrecord(args.data_dir,
-                        text_tokenizer,
-                        batch_size=args.batch_size,
-                        shuffle_buffer_size=args.shuffle_buffer_size,
-                        output_path=args.output_path)
+  # Write the dataset to a tfrecord file, catching any errors
+  try:
+    load_cc3m_to_tfrecord(args.data_dir,
+                          text_tokenizer,
+                          batch_size=args.batch_size,
+                          shuffle_buffer_size=args.shuffle_buffer_size,
+                          output_path=args.output_path)
+  except Exception as e:
+    print(e)
