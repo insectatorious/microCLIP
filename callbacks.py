@@ -14,14 +14,15 @@ class ImageTextCosineSimilarityCallback(tf.keras.callbacks.Callback):
     self.tensorboard_writer = tf.summary.create_file_writer(tensorboard_log_dir)
     self.epoch = -1
     self.batch_interval = batch_interval
+    self.batch_count = 0
 
   def on_epoch_begin(self, epoch, logs=None):
     self.epoch = epoch
 
   def on_train_batch_end(self, batch, logs=None):
     # print("Batch:", batch, "Epoch:", self.epoch, "Step:", self.params)
-    batch += (self.params["steps"] or 1) * self.epoch
-    if batch % self.batch_interval == 0:
+    # batch += (self.params["steps"] or 1) * self.epoch
+    if self.batch_count % self.batch_interval == 0:
       logits = self.model((self.texts_tokenised, self.images))
       logits_softmax = tf.nn.softmax(logits / self.model.temperature, axis=-1)
 
@@ -29,8 +30,10 @@ class ImageTextCosineSimilarityCallback(tf.keras.callbacks.Callback):
       with self.tensorboard_writer.as_default():
         # Log cosine similarity separately for each image
         for i, label in zip(range(logits.shape[0]), ["bus", "cat", "dog"]):
-          tf.summary.scalar(f"cosine_similarity/softmax/{label}", logits_softmax[i, i], step=batch)
-          tf.summary.scalar(f"cosine_similarity/raw/{label}", logits[i, i], step=batch)
+          tf.summary.scalar(f"cosine_similarity/softmax/{label}", logits_softmax[i, i], step=self.batch_count)
+          tf.summary.scalar(f"cosine_similarity/raw/{label}", logits[i, i], step=self.batch_count)
+
+    self.batch_count += 1
 
 
 class BatchMetricsCallback(tf.keras.callbacks.Callback):
@@ -48,18 +51,18 @@ class BatchMetricsCallback(tf.keras.callbacks.Callback):
     )
     # on
     self.epoch = -1
+    self.batch_count = 0
 
   def on_epoch_begin(self, epoch, logs=None):
     self.epoch = epoch
 
   def on_train_batch_end(self, batch, logs=None):
-    # print("Batch:", batch, "Epoch:", self.epoch, "Step:", self.params)
-    batch += (self.params["steps"] or 1) * self.epoch
-    if batch % self.batch_interval == 0:
+    if self.batch_count % self.batch_interval == 0:
       with self.tensorboard_loss_writer.as_default():
-        self.write_loss_metrics(batch, logs)
+        self.write_loss_metrics(self.batch_count, logs)
       with self.tensorboard_logits_writer.as_default():
-        self.write_logits_metrics(batch, logs)
+        self.write_logits_metrics(self.batch_count, logs)
+    self.batch_count += 1
 
   def on_test_batch_end(self, batch, logs=None):
     if batch % self.batch_interval == 0:
