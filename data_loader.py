@@ -114,7 +114,7 @@ def load_cc3m_to_tfrecord(data_dir,
         # Update the progress bar
         pbar.update(1)
       except:
-        print(f"Failed to write example to tfrecord file: {label}, {image}")
+        print(f"Failed to write example to tfrecord file: {label}")
         continue
 
   # Close the tfrecord writer
