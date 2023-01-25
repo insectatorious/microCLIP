@@ -47,10 +47,6 @@ def encode_text(text, tokeniser):
   return encoded_text[0]
 
 
-def check_label_and_image_are_valid(label, image):
-  return label and image
-
-
 def load_dataset(data_dir, text_tokenizer, batch_size: Optional[int] = 32, shuffle_buffer_size=1000):
   """Load a dataset from a directory."""
   # Curry the load_image function to pass the text_tokenizer.
@@ -73,7 +69,7 @@ def load_dataset(data_dir, text_tokenizer, batch_size: Optional[int] = 32, shuff
   dataset = tf.data.Dataset.from_tensor_slices((image_paths, label_paths))
   dataset = dataset.shuffle(shuffle_buffer_size)
   dataset = dataset.map(load_image_fn, num_parallel_calls=tf.data.AUTOTUNE)
-  dataset = dataset.filter(check_label_and_image_are_valid)
+  dataset = dataset.filter(lambda label, image: label is not None)
   if batch_size:
     dataset = dataset.batch(batch_size, drop_remainder=True)
     dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
