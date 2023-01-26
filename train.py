@@ -98,7 +98,7 @@ if __name__ == '__main__':
                       help='Number of layers for text encoder')
   parser.add_argument('--text_ff_dim', required=False, type=int, default=512,
                       help='Feed forward dimension for text encoder')
-  parser.add_argument('--reduce_lr', required=False, type=bool, default=False,
+  parser.add_argument('--reduce_lr', required=False, action='store_true',
                       help='Reduce LR on plateau')
   parser.add_argument('--mixup', required=False, action='store_true',
                       help='Use Mixup technique for training')
