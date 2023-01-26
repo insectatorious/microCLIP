@@ -8,23 +8,31 @@
 # The label is a plain text string. The image is a 256x256x3 RGB image.
 
 import os
+import random
 import argparse
 from functools import partial
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
 
-def load_image(image_path, label_path, encode_fn):
+def sample_beta_distribution(size, concentration_0=0.2, concentration_1=0.2) -> tf.Tensor:
+  gamma_1_sample = tf.random.gamma(shape=[size], alpha=concentration_1, dtype=tf.float32)
+  gamma_2_sample = tf.random.gamma(shape=[size], alpha=concentration_0, dtype=tf.float32)
+  return gamma_1_sample / (gamma_1_sample + gamma_2_sample)
+
+
+def load_image(image_path, label_path, encode_fn) -> Tuple[Optional[tf.Tensor],
+                                                           Optional[tf.Tensor]]:
   """Load an image and its corresponding label."""
   try:
     image = tf.io.read_file(image_path)
     image = tf.image.decode_png(image, channels=3)
     image = tf.image.convert_image_dtype(image, tf.float32)
     image = tf.image.resize(image, (256, 256))
-  except:
+  except tf.errors.InvalidArgumentError as ex:
     print("Failed to load image: {}".format(image_path))
     return None, None
 
@@ -47,7 +55,10 @@ def encode_text(text, tokeniser):
   return encoded_text[0]
 
 
-def load_dataset(data_dir, text_tokenizer, batch_size: Optional[int] = 32, shuffle_buffer_size=1000):
+def load_dataset(data_dir,
+                 text_tokenizer,
+                 batch_size: Optional[int] = 32,
+                 shuffle_buffer_size=1000):
   """Load a dataset from a directory."""
   # Curry the load_image function to pass the text_tokenizer.
   encode_fn = partial(encode_text, tokeniser=text_tokenizer)
@@ -87,6 +98,9 @@ def load_cc3m_to_tfrecord(data_dir,
                          text_tokenizer,
                          batch_size=batch_size,
                          shuffle_buffer_size=shuffle_buffer_size)
+
+  # Shard the dataset into multiple files
+  dataset = dataset.shard(10, 0)
 
   # Create a new tfrecord writer
   writer = tf.io.TFRecordWriter(output_path,
@@ -157,6 +171,34 @@ def read_tfrecord(file_path, batch_size=32, image_size=(256, 256)):
   dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
   return dataset
+
+
+def mix_up_datasets(ds_one, ds_two, alpha: float = 0.2):
+  """Mix two CC3M datasets together.
+  It is assumed that
+  - the datasets have the same number of elements
+  - the datasets have not been batched
+  - the datasets have the same batch size
+  """
+  # Unpack the datasets
+  ds_one_labels, ds_one_images = ds_one
+  ds_two_labels, ds_two_images = ds_two
+  batch_size = tf.shape(ds_one_labels)[0]
+
+  # Sample lambda and reshape it to do the mixup
+  l = sample_beta_distribution(batch_size, alpha, alpha)
+  x_l = tf.reshape(l, (batch_size, 1, 1, 1))
+  y_l = tf.reshape(l, (batch_size, 1))
+
+  # Cast labels to float32
+  ds_one_labels = tf.cast(ds_one_labels, tf.float32)
+  ds_two_labels = tf.cast(ds_two_labels, tf.float32)
+
+  # Mix the datasets together
+  images = ds_one_images * x_l + ds_two_images * (1 - x_l)
+  labels = ds_one_labels * y_l + ds_two_labels * (1 - y_l)
+
+  return (labels, images), l
 
 
 if __name__ == '__main__':

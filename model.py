@@ -13,6 +13,7 @@ class MicroCLIP(tf.keras.Model):
                image_encoder: Optional[tf.keras.Model] = None,
                latent_dim: int = 512,
                temperature: float = 1.0,
+               mixup: bool = False,
                **kwargs):
     super().__init__(**kwargs)
 
@@ -33,6 +34,7 @@ class MicroCLIP(tf.keras.Model):
     self.image_preprocessor = image_encoder.image_preprocessor
     self.temperature = temperature
     self.latent_dim = latent_dim
+    self.mixup = mixup
 
     self.text_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
     self.image_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
@@ -85,7 +87,8 @@ class MicroCLIP(tf.keras.Model):
     return {"text_encoder": self.text_encoder,
             "image_encoder": self.image_encoder,
             "latent_dim": self.latent_dim,
-            "temperature": self.temperature}
+            "temperature": self.temperature,
+            "mixup": self.mixup}
 
   def train_step(self, data):
     """Performs a training step.
@@ -101,9 +104,15 @@ class MicroCLIP(tf.keras.Model):
       A dictionary containing the loss and other metrics.
     """
     # text, image = data
+    if self.mixup:
+      text, image = data[0]
+      lambdas = data[1]
+    else:
+      text, image = data
     with tf.GradientTape() as tape:
-      logits = self(data, training=True)
-      labels = tf.range(tf.shape(logits)[0])
+
+      logits = self((text, image), training=True)
+      labels = tf.range(tf.shape(logits)[0]) if not self.mixup else lambdas
       image_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True, axis=0)
       text_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True, axis=1)
       loss = tf.reduce_mean(image_loss + text_loss)

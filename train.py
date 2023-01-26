@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 from callbacks import ImageTextCosineSimilarityCallback, BatchMetricsCallback
-from data_loader import read_tfrecord
+from data_loader import read_tfrecord, mix_up_datasets
 from model import MicroCLIP
 from image_encoder.model import ResNet
 from text_transformer.model import TextTransformer
@@ -43,17 +43,17 @@ def main(config):
   clip = MicroCLIP(image_encoder=image_encoder,
                    text_encoder=text_transformer,
                    temperature=config["temperature"],
-                   latent_dim=config["latent_dim"], )
-  # dataset = load_cc3m(config["data_dir"],
-  #                     text_transformer.tokenizer,
-  #                     batch_size=config["batch_size"], )
+                   latent_dim=config["latent_dim"],
+                   mixup=config["mixup"],)
+
   dataset = read_tfrecord(config["tfrecord_path"],
                           batch_size=config["batch_size"],
                           image_size=(64, 64))
-  # for batch in dataset.take(1):
-  #   print("Batch shape:", batch[0].shape, batch[1].shape)
-  #   print(batch)
-  #   print(clip(batch[0], batch[1]))
+  if config["mixup"]:
+    dataset = tf.data.Dataset.zip((dataset, dataset.shuffle(1000)))
+    dataset = dataset.map(lambda x, y: mix_up_datasets(x, y, alpha=0.2),
+                          num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
   clip.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
@@ -72,7 +72,7 @@ def main(config):
   clip.fit(dataset,
            epochs=config["epochs"],
            callbacks=callbacks, )
-  clip.save_weights('clip.h5')
+
   clip.save('clip')
 
   return clip
@@ -98,9 +98,10 @@ if __name__ == '__main__':
                       help='Number of layers for text encoder')
   parser.add_argument('--text_ff_dim', required=False, type=int, default=512,
                       help='Feed forward dimension for text encoder')
-  # Add param for reduce LR on plateau toggle
   parser.add_argument('--reduce_lr', required=False, type=bool, default=False,
                       help='Reduce LR on plateau')
+  parser.add_argument('--mixup', required=False, action='store_true',
+                      help='Use Mixup technique for training')
 
   args = parser.parse_args()
   config = vars(args)
