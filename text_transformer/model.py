@@ -45,14 +45,6 @@ class TextTransformer(tf.keras.Model):
     # - tokenised input in the form of a numpy array
     # - tokenised input in the form of a tf.Tensor
     # TODO: add support for other input types
-    # if isinstance(inputs, str):
-    #   inputs = [inputs]
-    # if isinstance(inputs[0], str):
-    #   inputs = tf.convert_to_tensor([self.tokenizer.encode(value) for value in inputs])
-    # if isinstance(inputs, np.ndarray):
-    #   inputs = tf.convert_to_tensor(inputs)
-    # if isinstance(inputs, tf.Tensor):
-    #   inputs = tf.convert_to_tensor(inputs)
 
     x = inputs
     seq_len = tf.shape(x)[1]
