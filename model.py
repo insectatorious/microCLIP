@@ -32,7 +32,7 @@ class MicroCLIP(tf.keras.Model):
     self.text_encoder = text_encoder
     self.image_encoder = image_encoder
     self.image_preprocessor = image_encoder.image_preprocessor
-    self.temperature = temperature
+    self.temperature = tf.Variable(temperature, trainable=True)
     self.latent_dim = latent_dim
     self.mixup = mixup
 
@@ -70,18 +70,33 @@ class MicroCLIP(tf.keras.Model):
     image_features = self.image_encoder(image, training=training)
     image_features = self.image_linear_projection(image_features)
 
-    # Joint multi-modal embedding
-    # image_logits = tf.tensordot(image_features, text_features, axes=1)
-    image_logits = tf.einsum("nc,nc->n", image_features, text_features)
-    normalized_image_logits = tf.nn.l2_normalize(image_logits, axis=0)
-    # text_logits = tf.tensordot(text_features, image_features, axes=1)
-    text_logits = tf.einsum("nc,nc->n", text_features, image_features)
-    normalized_text_logits = tf.nn.l2_normalize(text_logits, axis=0)
+    # normalized features
+    image_features = tf.math.l2_normalize(image_features, axis=-1)
+    text_features = tf.math.l2_normalize(text_features, axis=-1)
 
-    logits = tf.tensordot(normalized_image_logits, normalized_text_logits, axes=0)
-    logits *= tf.exp(self.temperature)
+    # cosine similarity as logits
+    logit_scale = tf.math.exp(self.temperature)
+    logits_per_image = logit_scale * tf.matmul(image_features, tf.transpose(text_features))
+    logits_per_text = logit_scale * tf.matmul(text_features, tf.transpose(image_features))
 
-    return logits
+    # shape = [global_batch_size, global_batch_size]
+    return logits_per_text, logits_per_image
+
+    # image_features /= tf.linalg.normalize(image_features, axis=-1)
+    # text_features /= tf.linalg.normalize(text_features, axis=-1)
+    #
+    # # Joint multi-modal embedding
+    # # image_logits = tf.tensordot(image_features, text_features, axes=1)
+    # image_logits = tf.einsum("nc,nc->n", image_features, text_features)
+    # normalized_image_logits = tf.linalg.normalize(image_logits, axis=0)
+    # # text_logits = tf.tensordot(text_features, image_features, axes=1)
+    # text_logits = tf.einsum("nc,nc->n", text_features, image_features)
+    # normalized_text_logits = tf.linalg.normalize(text_logits, axis=0)
+    #
+    # logits = tf.tensordot(normalized_image_logits, normalized_text_logits, axes=0)
+    # logits *= tf.exp(self.temperature)
+    #
+    # return logits
 
   def get_config(self):
     return {"text_encoder": self.text_encoder,
@@ -111,10 +126,15 @@ class MicroCLIP(tf.keras.Model):
       text, image = data
     with tf.GradientTape() as tape:
 
-      logits = self((text, image), training=True)
-      labels = tf.range(tf.shape(logits)[0]) if not self.mixup else lambdas
-      image_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True, axis=0)
-      text_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True, axis=1)
+      logits_per_text, logits_per_image = self((text, image), training=True)
+      # logits = self((text, image), training=True)
+      labels = tf.eye(tf.shape(logits_per_text)[0], dtype=tf.float32)
+      if self.mixup:
+        labels *= lambdas
+      image_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels, logits_per_image)
+      text_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels, logits_per_text)
+        # image_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True, axis=0)
+      # text_loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True, axis=1)
       loss = tf.reduce_mean(image_loss + text_loss)
 
     gradients = tape.gradient(loss, self.trainable_variables)
@@ -123,7 +143,8 @@ class MicroCLIP(tf.keras.Model):
     return {"loss": loss,
             "image_loss": tf.reduce_mean(image_loss),
             "text_loss": tf.reduce_mean(text_loss),
-            "logits": logits}
+            "logits_per_text": logits_per_text,
+            "logits_per_image": logits_per_image}
 
 
 if __name__ == '__main__':

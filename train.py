@@ -56,7 +56,7 @@ def main(config):
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
   clip.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
     loss=None,
   )
 

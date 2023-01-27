@@ -20,18 +20,14 @@ class ImageTextCosineSimilarityCallback(tf.keras.callbacks.Callback):
     self.epoch = epoch
 
   def on_train_batch_end(self, batch, logs=None):
-    # print("Batch:", batch, "Epoch:", self.epoch, "Step:", self.params)
-    # batch += (self.params["steps"] or 1) * self.epoch
     if self.batch_count % self.batch_interval == 0:
-      logits = self.model((self.texts_tokenised, self.images))
-      logits_softmax = tf.nn.softmax(logits / self.model.temperature, axis=-1)
+      logits_per_text, logits_per_image = self.model((self.texts_tokenised, self.images))
+      logits_softmax = tf.nn.softmax(logits_per_image, axis=-1)
 
-      # print(f'Cosine similarity: {cosine_similarity.numpy()}')
       with self.tensorboard_writer.as_default():
-        # Log cosine similarity separately for each image
-        for i, label in zip(range(logits.shape[0]), ["bus", "cat", "dog"]):
+        for i, label in zip(range(logits_per_image.shape[0]), ["bus", "cat", "dog"]):
           tf.summary.scalar(f"cosine_similarity/softmax/{label}", logits_softmax[i, i], step=self.batch_count)
-          tf.summary.scalar(f"cosine_similarity/raw/{label}", logits[i, i], step=self.batch_count)
+          tf.summary.scalar(f"cosine_similarity/raw/{label}", logits_per_image[i, i], step=self.batch_count)
 
     self.batch_count += 1
 
@@ -60,8 +56,8 @@ class BatchMetricsCallback(tf.keras.callbacks.Callback):
     if self.batch_count % self.batch_interval == 0:
       with self.tensorboard_loss_writer.as_default():
         self.write_loss_metrics(self.batch_count, logs)
-      with self.tensorboard_logits_writer.as_default():
-        self.write_logits_metrics(self.batch_count, logs)
+      # with self.tensorboard_logits_writer.as_default():
+      #   self.write_logits_metrics(self.batch_count, logs)
     self.batch_count += 1
 
   def on_test_batch_end(self, batch, logs=None):
