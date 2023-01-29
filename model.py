@@ -32,7 +32,7 @@ class MicroCLIP(tf.keras.Model):
     self.text_encoder = text_encoder
     self.image_encoder = image_encoder
     self.image_preprocessor = image_encoder.image_preprocessor
-    self.temperature = tf.Variable(temperature, trainable=True)
+    self.temperature = tf.Variable(temperature, trainable=True, name="temperature")
     self.latent_dim = latent_dim
     self.mixup = mixup
 
