@@ -12,7 +12,7 @@ class MicroCLIP(tf.keras.Model):
                text_encoder: Optional[tf.keras.Model] = None,
                image_encoder: Optional[tf.keras.Model] = None,
                latent_dim: int = 512,
-               temperature: float = 1.0,
+               # temperature: float = 1.0,
                mixup: bool = False,
                **kwargs):
     super().__init__(**kwargs)
@@ -28,11 +28,10 @@ class MicroCLIP(tf.keras.Model):
     assert hasattr(text_encoder, "tokenizer")
     assert hasattr(image_encoder, "image_preprocessor")
 
-    self.tokenizer = text_encoder.tokenizer
     self.text_encoder = text_encoder
     self.image_encoder = image_encoder
     self.image_preprocessor = image_encoder.image_preprocessor
-    self.temperature = tf.Variable(temperature, trainable=True, name="temperature")
+    self.temperature = tf.Variable(1.579, trainable=True, name="temperature")
     self.latent_dim = latent_dim
     self.mixup = mixup
 
@@ -102,7 +101,7 @@ class MicroCLIP(tf.keras.Model):
     return {"text_encoder": self.text_encoder,
             "image_encoder": self.image_encoder,
             "latent_dim": self.latent_dim,
-            "temperature": self.temperature,
+            # "temperature": self.temperature,
             "mixup": self.mixup}
 
   def train_step(self, data):

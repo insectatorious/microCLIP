@@ -17,6 +17,8 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
+MEAN_RGB = [0.6525933, 0.6365939, 0.61723816]
+
 
 def sample_beta_distribution(size, concentration_0=0.2, concentration_1=0.2) -> tf.Tensor:
   gamma_1_sample = tf.random.gamma(shape=[size], alpha=concentration_1, dtype=tf.float32)
@@ -141,36 +143,47 @@ def load_cc3m(data_dir, text_tokenizer, batch_size=32, shuffle_buffer_size=1000)
   return load_dataset(data_dir, text_tokenizer, batch_size, shuffle_buffer_size)
 
 
-def read_tfrecord(file_path, batch_size=32, image_size=(256, 256)):
+def read_tfrecord(file_path, batch_size: Optional[int] = 32, image_size=(256, 256), subtract_mean=True):
   # Create a dataset from the tfrecord file
   dataset = tf.data.TFRecordDataset(file_path, compression_type='GZIP')
 
   # Define a function to parse the tfrecord example
-  def parse_example(example_proto):
-    # Define the features to parse from the tfrecord
-    feature_description = {
-      'label': tf.io.FixedLenFeature(shape=(128,), dtype=tf.int64),
-      'image': tf.io.FixedLenFeature([256 * 256 * 3], dtype=tf.float32),
-    }
-    # Parse the example using the feature description
-    example = tf.io.parse_single_example(example_proto, feature_description)
-    # decode the image which is stored as a list of floats
-    example['image'] = tf.reshape(example['image'], (256, 256, 3))
-    # reshape the image to the desired size
-    example['image'] = tf.image.resize(example['image'], image_size)
-    # example['image'] = tf.reshape(example['image'], (image_size[0], image_size[1], 3))
-    # example['image'] = tf.image.convert_image_dtype(example['image'], tf.float32)
+  def parse_example(example_proto, image_size=image_size):
+    example = parse_label_image_proto(example_proto, image_size=image_size, subtract_mean=subtract_mean)
 
     return example['label'], example['image']
 
   # Map the parse function to the dataset
   dataset = dataset.map(parse_example)
-  # Batch the dataset
-  dataset = dataset.batch(batch_size, drop_remainder=True)
-  # Prefetch the dataset
-  dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
+  if batch_size:
+    # Batch the dataset
+    dataset = dataset.batch(batch_size, drop_remainder=True)
+
+    # Prefetch the dataset
+    dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
   return dataset
+
+
+def parse_label_image_proto(example_proto, image_size=(256, 256), subtract_mean=True):
+  # Define the features to parse from the tfrecord
+  feature_description = {
+    'label': tf.io.FixedLenFeature(shape=(128,), dtype=tf.int64),
+    'image': tf.io.FixedLenFeature([256 * 256 * 3], dtype=tf.float32),
+  }
+  # Parse the example using the feature description
+  example = tf.io.parse_single_example(example_proto, feature_description)
+  # decode the image which is stored as a list of floats
+  example['image'] = tf.reshape(example['image'], (256, 256, 3))
+  # reshape the image to the desired size
+  example['image'] = tf.image.resize(example['image'], image_size)
+
+  # subtract the mean from the image
+  if subtract_mean:
+    example['image'] -= tf.constant(MEAN_RGB, dtype=tf.float32)
+  # example['image'] = tf.reshape(example['image'], (image_size[0], image_size[1], 3))
+  # example['image'] = tf.image.convert_image_dtype(example['image'], tf.float32)
+  return example
 
 
 def mix_up_datasets(ds_one, ds_two, alpha: float = 0.2):

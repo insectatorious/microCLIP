@@ -141,32 +141,30 @@ class ResidualUnit(tf.keras.layers.Layer):
     self.relu = tf.keras.layers.ReLU()
 
   def call(self, inputs, training=False, mask=None):
-    print("Processing residual unit with input shape", inputs.shape)
     x = self.conv1(inputs)
-    print("x1", x.shape)
     x = self.bn1(x, training=training)
     x = self.relu(x)
-    print("x2", x.shape)
 
     x = self.conv2(x)
     x = self.bn2(x, training=training)
-    print("x3", x.shape)
 
     residual = inputs
     # if self.strides != 1:
     residual = self.conv3(inputs)
     residual = self.bn3(residual, training=training)
 
-    print("residual", residual.shape)
-
     x += residual
-    print("x4", x.shape)
     x = self.relu(x)
 
     return x
 
 
 class ResNet(tf.keras.models.Model):
+
+  @property
+  def MEAN_RGB(self):
+    return [0.6525933, 0.6365939, 0.61723816]
+
   def __init__(self,
                num_classes: Optional[int] = None,
                pooling: Optional[str] = "avg",
@@ -259,7 +257,7 @@ class ResNet(tf.keras.models.Model):
   def image_preprocessor(cls, x, **kwargs):
     # Cast to float32 and normalize to [0, 1]
 
-    return tf.divide(tf.cast(x, tf.float32), 255.0)
+    return tf.divide(tf.cast(x, tf.float32), 255.0) - cls.MEAN_RGB
 
 
 class ResidualBlock(tf.keras.layers.Layer):
@@ -305,8 +303,7 @@ class ResidualBlock(tf.keras.layers.Layer):
 
   def get_config(self) -> Dict:
     config = super(ResidualBlock, self).get_config()
-    config.update({"num_of_filters": self.num_of_filters,
-                   "final_relu": self.final_relu})
+    config.update({"num_of_filters": self.num_of_filters})
 
     return config
 

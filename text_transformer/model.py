@@ -84,7 +84,12 @@ class EncoderLayer(tf.keras.layers.Layer):
   def __init__(self, embedding_dim, num_heads, ff_dim, rate=0.1):
     super(EncoderLayer, self).__init__()
 
-    self.mha = MultiHeadAttention(embedding_dim, num_heads)
+    self.embedding_dim = embedding_dim
+    self.num_heads = num_heads
+    self.ff_dim = ff_dim
+    self.rate = rate
+
+    self.mha = TextMultiHeadAttention(embedding_dim, num_heads)
     self.ffn = point_wise_feed_forward_network(embedding_dim, ff_dim)
 
     self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
@@ -117,8 +122,13 @@ class DecoderLayer(tf.keras.layers.Layer):
   def __init__(self, embedding_dim, num_heads, ff_dim, rate=0.1):
     super(DecoderLayer, self).__init__()
 
-    self.mha1 = MultiHeadAttention(embedding_dim, num_heads)
-    self.mha2 = MultiHeadAttention(embedding_dim, num_heads)
+    self.embedding_dim = embedding_dim
+    self.num_heads = num_heads
+    self.ff_dim = ff_dim
+    self.rate = rate
+
+    self.mha1 = TextMultiHeadAttention(embedding_dim, num_heads)
+    self.mha2 = TextMultiHeadAttention(embedding_dim, num_heads)
 
     self.ffn = point_wise_feed_forward_network(embedding_dim, ff_dim)
 
@@ -157,9 +167,9 @@ class DecoderLayer(tf.keras.layers.Layer):
     }
 
 
-class MultiHeadAttention(tf.keras.layers.Layer):
+class TextMultiHeadAttention(tf.keras.layers.Layer):
   def __init__(self, embedding_dim, num_heads):
-    super(MultiHeadAttention, self).__init__()
+    super(TextMultiHeadAttention, self).__init__()
     self.num_heads = num_heads
     self.embedding_dim = embedding_dim
 

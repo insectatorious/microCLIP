@@ -1,3 +1,4 @@
+import json
 import os
 import argparse
 from datetime import datetime
@@ -42,7 +43,7 @@ def main(config):
 
   clip = MicroCLIP(image_encoder=image_encoder,
                    text_encoder=text_transformer,
-                   temperature=config["temperature"],
+                   # temperature=config["temperature"],
                    latent_dim=config["latent_dim"],
                    mixup=config["mixup"],)
 
@@ -56,7 +57,7 @@ def main(config):
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
   clip.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001, clipnorm=0.7, clipvalue=0.5),
     loss=None,
   )
 
@@ -74,6 +75,7 @@ def main(config):
            callbacks=callbacks, )
 
   clip.save('clip')
+  clip.save_weights('clip_weights.h5')
 
   return clip
 
@@ -105,4 +107,7 @@ if __name__ == '__main__':
 
   args = parser.parse_args()
   config = vars(args)
+  # Save config to file
+  with open('config.json', 'w') as f:
+    json.dump(config, f, indent=4)
   clip = main(config)
