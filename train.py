@@ -51,11 +51,12 @@ def main(config):
                           batch_size=config["batch_size"],
                           image_size=(64, 64))
   if config["mixup"]:
-    dataset = tf.data.Dataset.zip((dataset, dataset.shuffle(1000)))
+    dataset = tf.data.Dataset.zip((dataset, dataset.shuffle(100)))
     dataset = dataset.map(lambda x, y: mix_up_datasets(x, y, alpha=0.2),
                           num_parallel_calls=tf.data.AUTOTUNE)
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
+  dataset = dataset.take(1000)
   clip.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001, clipnorm=0.7, clipvalue=0.5),
     loss=None,
@@ -104,6 +105,8 @@ if __name__ == '__main__':
                       help='Reduce LR on plateau')
   parser.add_argument('--mixup', required=False, action='store_true',
                       help='Use Mixup technique for training')
+  parser.add_argument('--weights_path', required=False, type=str, default='clip_weights.h5',
+                      help='Path to weights file to save to')
 
   args = parser.parse_args()
   config = vars(args)
