@@ -2,14 +2,19 @@
 import time
 from typing import Optional
 
+import tiktoken
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
+from tiktoken import Encoding
 
-from simple_tokenizer import SimpleTokenizer
+
+# from simple_tokenizer import SimpleTokenizer
 
 
 class TextTransformer(tf.keras.Model):
+  tokenizer: Encoding
+
   def __init__(self,
                embedding_dim,
                num_heads,
@@ -25,8 +30,8 @@ class TextTransformer(tf.keras.Model):
     self.rate = rate
     self.num_classes = num_classes
 
-    self.tokenizer = SimpleTokenizer()
-    self.vocab_size = len(self.tokenizer.encoder)
+    self.tokenizer = tiktoken.get_encoding("gpt2")
+    self.vocab_size = self.tokenizer.n_vocab
     self.embedding = layers.Embedding(self.vocab_size, embedding_dim)
     self.pos_encoding = positional_encoding(self.vocab_size, embedding_dim)
     self.enc_layers = [EncoderLayer(embedding_dim, num_heads, ff_dim, rate)
