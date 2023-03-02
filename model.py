@@ -31,7 +31,7 @@ class MicroCLIP(tf.keras.Model):
     self.text_encoder = text_encoder
     self.image_encoder = image_encoder
     self.image_preprocessor = image_encoder.image_preprocessor
-    self.temperature = tf.Variable(1.579, trainable=True, name="temperature")
+    self.temperature = tf.Variable(0.1, trainable=True, name="temperature")
     self.latent_dim = latent_dim
     self.mixup = mixup
 
@@ -75,8 +75,9 @@ class MicroCLIP(tf.keras.Model):
 
     # cosine similarity as logits
     logit_scale = tf.math.exp(self.temperature)
-    logits_per_image = logit_scale * tf.matmul(image_features, tf.transpose(text_features))
-    logits_per_text = logit_scale * tf.matmul(text_features, tf.transpose(image_features))
+    logits_per_image = logit_scale * image_features @ tf.transpose(text_features)
+    logits_per_text = logit_scale * text_features @ tf.transpose(image_features)
+    # logits_per_text = logit_scale * tf.matmul(text_features, tf.transpose(image_features))
 
     # shape = [global_batch_size, global_batch_size]
     return logits_per_text, logits_per_image
