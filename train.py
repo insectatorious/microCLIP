@@ -5,6 +5,7 @@ from datetime import datetime
 
 import numpy as np
 import tensorflow as tf
+from clearml import Task
 
 from callbacks import ImageTextCosineSimilarityCallback, BatchMetricsCallback
 from data_loader import read_tfrecord, mix_up_datasets
@@ -45,7 +46,7 @@ def main(config):
                    text_encoder=text_transformer,
                    # temperature=config["temperature"],
                    latent_dim=config["latent_dim"],
-                   mixup=config["mixup"],)
+                   mixup=config["mixup"], )
 
   dataset = read_tfrecord(config["tfrecord_path"],
                           batch_size=config["batch_size"],
@@ -56,9 +57,9 @@ def main(config):
                           num_parallel_calls=tf.data.AUTOTUNE)
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
-  dataset = dataset.take(1000)
+  # dataset = dataset.take(1000)
   clip.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001, clipnorm=0.7, clipvalue=0.5),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
     loss=None,
   )
 
@@ -110,6 +111,12 @@ if __name__ == '__main__':
 
   args = parser.parse_args()
   config = vars(args)
+  task = Task.init(project_name='microCLIP', task_name='local training')
+  task.connect({k: v for k, v in config.items()
+                if k in ['tfrecord_path', 'epochs', 'batch_size',
+                         'img_filter_count', 'text_embedding_dim', 'latent_dim',
+                         'text_num_heads', 'text_num_layers', 'text_ff_dim',
+                         'reduce_lr', 'mixup', 'weights_path']})
   # Save config to file
   with open('config.json', 'w') as f:
     json.dump(config, f, indent=4)
