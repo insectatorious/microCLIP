@@ -36,9 +36,9 @@ class MicroCLIP(tf.keras.Model):
     self.mixup = mixup
 
     self.text_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
-    self.text_normlisation = tf.keras.layers.LayerNormalization()
+    self.text_normlisation = tf.keras.layers.BatchNormalization()
     self.image_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
-    self.image_normlisation = tf.keras.layers.LayerNormalization()
+    self.image_normlisation = tf.keras.layers.BatchNormalization()
 
   def call(self, inputs, training=False, mask=None):
     """Performs a forward pass.
