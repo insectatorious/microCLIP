@@ -36,7 +36,9 @@ class MicroCLIP(tf.keras.Model):
     self.mixup = mixup
 
     self.text_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
+    self.text_normlisation = tf.keras.layers.LayerNormalization()
     self.image_linear_projection = tf.keras.layers.Dense(latent_dim, use_bias=False)
+    self.image_normlisation = tf.keras.layers.LayerNormalization()
 
   def call(self, inputs, training=False, mask=None):
     """Performs a forward pass.
@@ -66,12 +68,14 @@ class MicroCLIP(tf.keras.Model):
     text, image = inputs
     text_features = self.text_encoder(text, training=training)
     text_features = self.text_linear_projection(text_features)
+    text_features = self.text_normlisation(text_features)
     image_features = self.image_encoder(image, training=training)
     image_features = self.image_linear_projection(image_features)
+    image_features = self.image_normlisation(image_features)
 
     # normalized features
-    image_features = tf.math.l2_normalize(image_features, axis=-1)
-    text_features = tf.math.l2_normalize(text_features, axis=-1)
+    # image_features /= tf.math.l2_normalize(image_features, axis=1)
+    # text_features /= tf.math.l2_normalize(text_features, axis=1)
 
     # cosine similarity as logits
     logit_scale = tf.math.exp(self.temperature)
