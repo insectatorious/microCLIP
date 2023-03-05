@@ -66,6 +66,9 @@ def main(config):
   callbacks = [
     ImageTextCosineSimilarityCallback(texts_tokenised, images, logdir),
     BatchMetricsCallback(logdir),
+    tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(logdir, 'weights.{epoch:02d}-{loss:.2f}.h5'),
+                                       save_weights_only=True,
+                                       verbose=1),
   ]
   if config["reduce_lr"]:
     callbacks.append(tf.keras.callbacks.ReduceLROnPlateau(monitor='loss',
