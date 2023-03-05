@@ -22,12 +22,17 @@ class ImageTextCosineSimilarityCallback(tf.keras.callbacks.Callback):
   def on_train_batch_end(self, batch, logs=None):
     if self.batch_count % self.batch_interval == 0:
       logits_per_text, logits_per_image = self.model((self.texts_tokenised, self.images))
-      logits_softmax = tf.nn.softmax(logits_per_image, axis=-1)
+      logits_softmax = tf.nn.softmax(logits_per_image, axis=1)
+      diag_logits_softmax = tf.linalg.diag_part(logits_softmax)
+      diag_logits = tf.linalg.diag_part(logits_per_image)
 
       with self.tensorboard_writer.as_default():
         for i, label in zip(range(logits_per_image.shape[0]), ["bus", "cat", "dog"]):
-          tf.summary.scalar(f"cosine_similarity/softmax/{label}", logits_softmax[i, i], step=self.batch_count)
-          tf.summary.scalar(f"cosine_similarity/raw/{label}", logits_per_image[i, i], step=self.batch_count)
+          tf.summary.scalar(f"dot/softmax/{label}", diag_logits_softmax[i], step=self.batch_count)
+          tf.summary.scalar(f"dot/raw/{label}", diag_logits[i], step=self.batch_count)
+
+          tf.summary.histogram(f"dot/raw/{label}", logits_per_image[i, :], step=self.batch_count)
+          tf.summary.histogram(f"dot/softmax/{label}", logits_softmax[i, :], step=self.batch_count)
 
     self.batch_count += 1
 
